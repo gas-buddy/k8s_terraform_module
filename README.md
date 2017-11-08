@@ -6,7 +6,7 @@ Use this to set up a Kubernetes cluster using the AWS provider
 
 Here's an example configuration:
 
-```
+```hcl
 module "k8s" {
   source = "path/to/k8s_terraform_module"
 
