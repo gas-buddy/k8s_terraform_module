@@ -104,7 +104,7 @@ coreos:
         ConditionFileIsExecutable=/usr/lib/coreos/kubelet-wrapper
         [Service]
         Environment="KUBELET_ACI=quay.io/coreos/hyperkube"
-        Environment="KUBELET_VERSION=${kubelet_version}"
+        Environment="KUBELET_VERSION=${kubernetes_version}"
         Environment="RKT_OPTS=\
           --volume dns,kind=host,source=/etc/resolv.conf \
           --mount volume=dns,target=/etc/resolv.conf \
@@ -155,7 +155,7 @@ write-files:
         hostNetwork: true
         containers:
         - name: kube-apiserver
-          image: quay.io/coreos/hyperkube:${kubelet_version}
+          image: quay.io/coreos/hyperkube:${kubernetes_version}
           command:
           - /hyperkube
           - apiserver
@@ -217,7 +217,7 @@ write-files:
         hostNetwork: true
         containers:
         - name: kube-controller-manager
-          image: quay.io/coreos/hyperkube:${kubelet_version}
+          image: quay.io/coreos/hyperkube:${kubernetes_version}
           command:
           - /hyperkube
           - controller-manager
@@ -262,7 +262,7 @@ write-files:
         hostNetwork: true
         containers:
         - name: kube-proxy
-          image: quay.io/coreos/hyperkube:${kubelet_version}
+          image: quay.io/coreos/hyperkube:${kubernetes_version}
           command:
           - /hyperkube
           - proxy
@@ -290,7 +290,7 @@ write-files:
         hostNetwork: true
         containers:
         - name: kube-scheduler
-          image: quay.io/coreos/hyperkube:${kubelet_version}
+          image: quay.io/coreos/hyperkube:${kubernetes_version}
           command:
           - /hyperkube
           - scheduler
