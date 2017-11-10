@@ -5,7 +5,7 @@ module "k8s" {
   cluster_name = "staging"
 
   discovery_srv = "staging.k8s"
-  kubelet_version = "v1.5.3_coreos.0"
+  kubernetes_version = "v1.5.3_coreos.0"
   cluster_dns = "10.3.0.10"
   ssl_bucket = "some_s3_bucket"
   worker_root_volume_size = 8

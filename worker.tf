@@ -3,7 +3,7 @@ data "template_file" "worker_cloud_config" {
 
   vars {
     discovery_srv = "${var.discovery_srv}"
-    kubelet_version = "${var.kubelet_version}"
+    kubernetes_version = "${var.kubernetes_version}"
     cluster_dns = "${var.cluster_dns}"
     ssl_bucket = "${var.ssl_bucket}"
   }
