@@ -97,8 +97,8 @@ coreos:
         [Unit]
         ConditionFileIsExecutable=/usr/lib/coreos/kubelet-wrapper
         [Service]
-        Environment="KUBELET_ACI=quay.io/coreos/hyperkube"
-        Environment="KUBELET_VERSION=${kubernetes_version}"
+        Environment="KUBELET_IMAGE_URL=quay.io/coreos/hyperkube"
+        Environment="KUBELET_IMAGE_TAG=${kubernetes_version}"
         Environment="RKT_OPTS=\
           --volume dns,kind=host,source=/etc/resolv.conf \
           --mount volume=dns,target=/etc/resolv.conf \
