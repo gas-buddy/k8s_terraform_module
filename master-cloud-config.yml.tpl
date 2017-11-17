@@ -9,7 +9,7 @@ coreos:
     # debug: true
     discovery-srv: ${discovery_srv}
     initial-advertise-peer-urls: https://${ip_address}:2380
-    initial-cluster-state: new
+    initial-cluster-state: existing
     initial-cluster-token: etcd-cluster-staging
     # key-file: /etc/kubernetes/ssl/k8s-etcd-key.pem
     listen-client-urls: http://0.0.0.0:2379
