@@ -29,6 +29,7 @@ variable "master_instance_type" { default = "t2.medium" }
 variable "master_subnets" { type = "list" }
 variable "master_ips" { type = "list" }
 variable "master_security_groups" { type = "list" }
+variable "public_subnets" { type = "list" }
 variable "master_instances" { default = 1 }
 
 # workers

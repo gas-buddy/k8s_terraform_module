@@ -84,6 +84,40 @@ resource "aws_route53_record" "cluster-A" {
   ]
 }
 
+resource "aws_elb" "this" {
+  # name = "${var.env}-kubernetes-api"
+  name = "kz8s-apiserver-staging"
+  subnets = ["${var.public_subnets}"]
+  instances = ["${join(",", aws_instance.master.*.id)}"]
+  idle_timeout = 3600
+  cross_zone_load_balancing = true
+
+  health_check {
+    target = "HTTP:8080/"
+    timeout = 3
+    interval = 30
+    unhealthy_threshold = 2
+    healthy_threshold = 2
+  }
+
+  listener {
+    instance_port = 443
+    instance_protocol = "tcp"
+    lb_port = 443
+    lb_protocol = "tcp"
+  }
+
+  tags {
+    # Name = "${var.env}-kubernetes-api"
+    Name = "kz8s-apiserver"
+    builtWith = "terraform"
+    KubernetesCluster = "${var.cluster_name}"
+    env = "${var.env}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "true"
+    role = "apiserver"
+  }
+}
+
 resource "aws_launch_configuration" "masters" {
   name_prefix = "${var.env}-k8s-master-"
   image_id = "${var.master_ami}"
