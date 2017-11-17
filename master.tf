@@ -11,6 +11,36 @@ data "template_file" "master_cloud_config" {
   }
 }
 
+resource "aws_instance" "master" {
+  count = "${var.master_instances}"
+
+  ami = "${var.master_ami}"
+  instance_type = "${var.master_instance_type}"
+  key_name = "${var.key_name}"
+  vpc_security_group_ids = ["${var.master_security_groups}"]
+  subnet_id = "${element(var.master_subnets, count.index)}"
+  user_data = "${element(data.template_file.master_cloud_config.*.rendered, count.index)}"
+  iam_instance_profile = "${var.master_iam_profile}"
+  private_ip = "${element(var.master_ips, count.index)}"
+
+  source_dest_check = false
+  monitoring = false
+
+  tags {
+    Name = "${var.env}-k8s-master-${count.index+1}"
+    env = "${var.env}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "true"
+    role = "etcd,apiserver"
+    KubernetesCluster = "${var.cluster_name}"
+    builtWith = "terraform"
+  }
+
+  root_block_device {
+    volume_type = "gp2"
+    volume_size = "${var.master_root_volume_size}"
+  }
+}
+
 resource "aws_launch_configuration" "masters" {
   name_prefix = "${var.env}-k8s-master-"
   image_id = "${var.master_ami}"
@@ -29,90 +59,6 @@ resource "aws_launch_configuration" "masters" {
   lifecycle {
     create_before_destroy = true
   }
-}
-
-resource "aws_cloudformation_stack" "masters_asg" {
-  name = "${var.env}-k8s-master"
-  template_body = <<EOF
-{
-  "Resources": {
-    "AutoScalingGroup": {
-      "Type": "AWS::AutoScaling::AutoScalingGroup",
-      "Properties": {
-        "Cooldown": 300,
-        "HealthCheckType": "EC2",
-        "HealthCheckGracePeriod": 0,
-        "LaunchConfigurationName": "${aws_launch_configuration.masters.name}",
-        "MaxSize": "${var.master_asg_max_size}",
-        "MetricsCollection": [
-          {
-            "Granularity": "1Minute",
-            "Metrics": [
-              "GroupMinSize",
-              "GroupMaxSize",
-              "GroupDesiredCapacity",
-              "GroupInServiceInstances",
-              "GroupPendingInstances",
-              "GroupStandbyInstances",
-              "GroupTerminatingInstances",
-              "GroupTotalInstances"
-            ]
-          }
-        ],
-        "MinSize": "${var.master_asg_min_size}",
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "${var.env}-k8s-master",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "env",
-            "Value": "${var.env}",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "role",
-            "Value": "master",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "kubernetes.io/cluster/${var.cluster_name}",
-            "Value": "true",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "KubernetesCluster",
-            "Value": "${var.cluster_name}",
-            "PropagateAtLaunch": true
-          }
-        ],
-        "TerminationPolicies": [
-          "OldestLaunchConfiguration",
-          "OldestInstance",
-          "Default"
-        ],
-        "VPCZoneIdentifier": ${jsonencode(var.master_subnets)}
-      },
-      "UpdatePolicy": {
-        "AutoScalingRollingUpdate": {
-          "MinInstancesInService": "${var.master_asg_min_size}",
-          "MaxBatchSize": "2",
-          "PauseTime": "PT0S"
-        }
-      }
-    }
-  },
-  "Outputs": {
-    "AsgName": {
-      "Description": "The name of the auto scaling group",
-      "Value": {
-        "Ref": "AutoScalingGroup"
-      }
-    }
-  }
-}
-EOF
 }
 
 # This might be useful one day...
@@ -198,26 +144,6 @@ resource "aws_iam_role_policy" "masters_sns" {
   ]
 }
 EOF
-}
-
-resource "aws_autoscaling_lifecycle_hook" "masters_launching" {
-  name = "${var.env}-k8s-master-launching"
-  autoscaling_group_name = "${aws_cloudformation_stack.masters_asg.outputs["AsgName"]}"
-  default_result = "CONTINUE"
-  heartbeat_timeout = "${var.lifecycle_hook_heartbeat_timeout}"
-  lifecycle_transition = "autoscaling:EC2_INSTANCE_LAUNCHING"
-  notification_target_arn = "${aws_sns_topic.masters.arn}"
-  role_arn = "${aws_iam_role.masters_sns.arn}"
-}
-
-resource "aws_autoscaling_lifecycle_hook" "masters_terminating" {
-  name = "${var.env}-k8s-master-terminating"
-  autoscaling_group_name = "${aws_cloudformation_stack.masters_asg.outputs["AsgName"]}"
-  default_result = "CONTINUE"
-  heartbeat_timeout = "${var.lifecycle_hook_heartbeat_timeout}"
-  lifecycle_transition = "autoscaling:EC2_INSTANCE_TERMINATING"
-  notification_target_arn = "${aws_sns_topic.masters.arn}"
-  role_arn = "${aws_iam_role.masters_sns.arn}"
 }
 
 output "master_user_data" { value = "${data.template_file.master_cloud_config.rendered}" }
