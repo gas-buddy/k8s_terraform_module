@@ -7,6 +7,7 @@ variable "cluster_dns" { type = "string" }
 variable "ssl_bucket" { type = "string" }
 variable "key_name" { type = "string" }
 variable "addl_volume_size" { default = 250 }
+variable "route53_zone_id" { type = "string" }
 
 # Needed if we ever want to implement autoscaling policy
 # variable "worker_asg_namespace" {}

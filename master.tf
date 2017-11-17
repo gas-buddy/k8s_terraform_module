@@ -45,6 +45,45 @@ resource "aws_instance" "master" {
   }
 }
 
+resource "aws_route53_record" "A" {
+  count = "${var.master_instances}"
+
+  zone_id = "${var.route53_zone_id}"
+  name = "${var.env}-k8s-master-${count.index+1}.${var.discovery_srv}"
+  type = "A"
+  ttl = "300"
+
+  records = ["${element(var.master_ips, count.index)}"]
+}
+
+resource "aws_route53_record" "SRV" {
+  zone_id = "${var.route53_zone_id}"
+  name = "_etcd-server-ssl._tcp.${var.discovery_srv}"
+  type = "SRV"
+  ttl = "300"
+
+  records = [
+    "0 0 2380 etcd1.staging.kz8s",
+    "0 0 2380 etcd2.staging.kz8s",
+    "0 0 2380 etcd3.staging.kz8s",
+    "${formatlist("0 0 2380 %s", var.master_ips)}"
+  ]
+}
+
+resource "aws_route53_record" "cluster-A" {
+  zone_id = "${var.route53_zone_id}"
+  name = "etcd.${var.discovery_srv}"
+  type = "A"
+  ttl = "300"
+
+  records = [
+    "172.30.10.10",
+    "172.30.10.11",
+    "172.30.10.12",
+    "${var.master_ips}"
+  ]
+}
+
 resource "aws_launch_configuration" "masters" {
   name_prefix = "${var.env}-k8s-master-"
   image_id = "${var.master_ami}"
