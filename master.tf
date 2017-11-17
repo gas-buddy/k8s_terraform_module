@@ -1,4 +1,6 @@
 data "template_file" "master_cloud_config" {
+  count = "${var.master_instances}"
+
   template = "${file("${path.module}/master-cloud-config.yml.tpl")}"
 
   vars {
@@ -8,6 +10,8 @@ data "template_file" "master_cloud_config" {
     ssl_bucket = "${var.ssl_bucket}"
     flanneld_network = "${var.flanneld_network}"
     cluster_ip_range = "${var.cluster_ip_range}"
+    node_name = "${var.env}-k8s-master-${count.index+1}"
+    ip_address = "${element(var.master_ips, count.index)}"
   }
 }
 

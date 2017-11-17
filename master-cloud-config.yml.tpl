@@ -4,17 +4,17 @@
 coreos:
 
   etcd2:
-    advertise-client-urls: http://etcd3.${discovery_srv}:2379
+    advertise-client-urls: http://${node_name}.${discovery_srv}:2379
     # cert-file: /etc/kubernetes/ssl/k8s-etcd.pem
     # debug: true
     discovery-srv: ${discovery_srv}
-    initial-advertise-peer-urls: https://etcd3.${discovery_srv}:2380
+    initial-advertise-peer-urls: https://${ip_address}:2380
     initial-cluster-state: new
     initial-cluster-token: etcd-cluster-staging
     # key-file: /etc/kubernetes/ssl/k8s-etcd-key.pem
     listen-client-urls: http://0.0.0.0:2379
     listen-peer-urls: https://0.0.0.0:2380
-    name: etcd3
+    name: ${node_name}
     peer-trusted-ca-file: /etc/kubernetes/ssl/etcd-ca.pem
     peer-client-cert-auth: true
     peer-cert-file: /etc/kubernetes/ssl/k8s-etcd.pem

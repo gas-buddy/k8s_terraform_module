@@ -26,7 +26,9 @@ variable "master_iam_profile" { type = "string" }
 variable "master_ami" { default = "ami-a89d3ad2" }
 variable "master_instance_type" { default = "t2.medium" }
 variable "master_subnets" { type = "list" }
+variable "master_ips" { type = "list" }
 variable "master_security_groups" { type = "list" }
+variable "master_instances" { default = 1 }
 
 # workers
 variable "worker_root_volume_size" { default = 8 }
