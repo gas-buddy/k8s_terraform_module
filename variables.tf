@@ -41,3 +41,6 @@ variable "worker_asg_min_size" { default = 4 }
 variable "worker_instance_type" { default = "m3.medium" }
 variable "worker_subnets" { type = "list" }
 variable "worker_security_groups" { type = "list" }
+
+variable "legacy_ips" { type = "list" }
+variable "legacy_names" { type = "list" }

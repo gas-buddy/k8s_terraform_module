@@ -63,10 +63,7 @@ resource "aws_route53_record" "SRV" {
   ttl = "300"
 
   records = [
-    "0 0 2380 etcd1.staging.kz8s",
-    "0 0 2380 etcd2.staging.kz8s",
-    "0 0 2380 etcd3.staging.kz8s",
-    "${formatlist("0 0 2380 %s", var.master_ips)}"
+    "${formatlist("0 0 2380 %s.${var.discovery_srv}", var.legacy_names)}",
   ]
 }
 
@@ -77,9 +74,7 @@ resource "aws_route53_record" "cluster-A" {
   ttl = "300"
 
   records = [
-    "172.30.10.10",
-    "172.30.10.11",
-    "172.30.10.12",
+    "${var.legacy_ips}",
     "${var.master_ips}"
   ]
 }
