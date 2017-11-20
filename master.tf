@@ -118,68 +118,6 @@ resource "aws_elb" "this" {
   }
 }
 
-resource "aws_launch_configuration" "masters" {
-  name_prefix = "${var.env}-k8s-master-"
-  image_id = "${var.master_ami}"
-  instance_type = "${var.master_instance_type}"
-  security_groups = ["${var.master_security_groups}"]
-  user_data = "${data.template_file.master_cloud_config.rendered}"
-  iam_instance_profile = "${var.master_iam_profile}"
-  key_name = "${var.key_name}"
-  enable_monitoring = true
-
-  root_block_device {
-    volume_type = "gp2"
-    volume_size = "${var.master_root_volume_size}"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# This might be useful one day...
-
-# resource "aws_autoscaling_policy" "masters_remove_capacity" {
-#   name = "${var.env}-${var.index}-masters-${var.site}-remove-capacity"
-#   scaling_adjustment = "${var.master_asg_scale_in_qty}"
-#   adjustment_type = "ChangeInCapacity"
-#   cooldown = "${var.master_asg_scale_in_cooldown}"
-#   autoscaling_group_name = "${aws_cloudformation_stack.masters_asg.outputs["AsgName"]}"
-# }
-
-# resource "aws_cloudwatch_metric_alarm" "masters_remove_capacity" {
-#   alarm_name = "${var.env}-${var.index}-masters-${var.site}-remove-capacity"
-#   comparison_operator = "GreaterThanOrEqualToThreshold"
-#   evaluation_periods = 2
-#   metric_name = "v1.travis.rabbitmq.consumers.builds.${var.master_queue}.headroom"
-#   namespace = "${var.master_asg_namespace}"
-#   period = 60
-#   statistic = "Maximum"
-#   threshold = "${var.master_asg_scale_in_threshold}"
-#   alarm_actions = ["${aws_autoscaling_policy.masters_remove_capacity.arn}"]
-# }
-
-# resource "aws_autoscaling_policy" "masters_add_capacity" {
-#   name = "${var.env}-${var.index}-masters-${var.site}-add-capacity"
-#   scaling_adjustment = "${var.master_asg_scale_out_qty}"
-#   adjustment_type = "ChangeInCapacity"
-#   cooldown = "${var.master_asg_scale_out_cooldown}"
-#   autoscaling_group_name = "${aws_cloudformation_stack.masters_asg.outputs["AsgName"]}"
-# }
-
-# resource "aws_cloudwatch_metric_alarm" "masters_add_capacity" {
-#   alarm_name = "${var.env}-${var.index}-masters-${var.site}-add-capacity"
-#   comparison_operator = "LessThanThreshold"
-#   evaluation_periods = 2
-#   metric_name = "v1.travis.rabbitmq.consumers.builds.${var.master_queue}.headroom"
-#   namespace = "${var.master_asg_namespace}"
-#   period = 60
-#   statistic = "Maximum"
-#   threshold = "${var.master_asg_scale_out_threshold}"
-#   alarm_actions = ["${aws_autoscaling_policy.masters_add_capacity.arn}"]
-# }
-
 resource "aws_sns_topic" "masters" {
   name = "${var.env}-k8s-master"
 }
