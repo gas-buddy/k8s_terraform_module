@@ -45,40 +45,6 @@ resource "aws_instance" "master" {
   }
 }
 
-resource "aws_route53_record" "A" {
-  count = "${var.master_instances}"
-
-  zone_id = "${var.route53_zone_id}"
-  name = "${var.env}-k8s-master-${count.index+1}.${var.discovery_srv}"
-  type = "A"
-  ttl = "300"
-
-  records = ["${element(var.master_ips, count.index)}"]
-}
-
-resource "aws_route53_record" "SRV" {
-  zone_id = "${var.route53_zone_id}"
-  name = "_etcd-server-ssl._tcp.${var.discovery_srv}"
-  type = "SRV"
-  ttl = "300"
-
-  records = [
-    "${formatlist("0 0 2380 %s.${var.discovery_srv}", var.legacy_names)}",
-  ]
-}
-
-resource "aws_route53_record" "cluster-A" {
-  zone_id = "${var.route53_zone_id}"
-  name = "etcd.${var.discovery_srv}"
-  type = "A"
-  ttl = "300"
-
-  records = [
-    "${var.legacy_ips}",
-    "${var.master_ips}"
-  ]
-}
-
 resource "aws_elb" "this" {
   # name = "${var.env}-kubernetes-api"
   name = "kz8s-apiserver-staging"
@@ -115,45 +81,6 @@ resource "aws_elb" "this" {
 
 resource "aws_sns_topic" "masters" {
   name = "${var.env}-k8s-master"
-}
-
-resource "aws_iam_role" "masters_sns" {
-  name = "${var.env}-k8s-master-sns"
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "autoscaling.amazonaws.com"
-      }
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_iam_role_policy" "masters_sns" {
-  name = "${var.env}-k8s-master-sns"
-  role = "${aws_iam_role.masters_sns.id}"
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": [
-        "sqs:SendMessage",
-        "sqs:GetQueueUrl",
-        "sns:Publish"
-      ],
-      "Effect": "Allow",
-      "Resource": "*"
-    }
-  ]
-}
-EOF
 }
 
 output "master_user_data" { value = "${data.template_file.master_cloud_config.rendered}" }
