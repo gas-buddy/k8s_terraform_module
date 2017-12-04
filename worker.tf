@@ -101,7 +101,7 @@ resource "aws_cloudformation_stack" "workers_asg" {
       "UpdatePolicy": {
         "AutoScalingRollingUpdate": {
           "MinInstancesInService": "${var.worker_asg_min_size}",
-          "MaxBatchSize": "2",
+          "MaxBatchSize": "1",
           "PauseTime": "PT0S"
         }
       }
