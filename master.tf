@@ -83,4 +83,4 @@ resource "aws_sns_topic" "masters" {
   name = "${var.env}-k8s-master"
 }
 
-output "master_user_data" { value = "${data.template_file.master_cloud_config.rendered}" }
+output "master_user_data" { value = "${data.template_file.master_cloud_config.*.rendered}" }
