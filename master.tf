@@ -47,7 +47,7 @@ resource "aws_instance" "master" {
 
 resource "aws_elb" "this" {
   # name = "${var.env}-kubernetes-api"
-  name = "kz8s-apiserver-staging"
+  name = "k8s-apiserver-${var.cluster_name}"
   subnets = ["${var.public_subnets}"]
   instances = ["${aws_instance.master.*.id}"]
   idle_timeout = 3600
@@ -70,8 +70,7 @@ resource "aws_elb" "this" {
   }
 
   tags {
-    # Name = "${var.env}-kubernetes-api"
-    Name = "kz8s-apiserver"
+    Name = "k8s-apiserver-${var.cluster_name}"
     builtWith = "terraform"
     KubernetesCluster = "${var.cluster_name}"
     env = "${var.env}"
