@@ -52,6 +52,7 @@ resource "aws_elb" "this" {
   instances = ["${aws_instance.master.*.id}"]
   idle_timeout = 3600
   cross_zone_load_balancing = true
+  security_groups = ["${var.elb_security_group}"]
 
   health_check {
     target = "HTTP:8080/"
