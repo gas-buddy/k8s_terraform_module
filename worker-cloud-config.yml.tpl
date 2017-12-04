@@ -5,7 +5,7 @@ coreos:
 
   etcd2:
     discovery-srv: ${discovery_srv}
-    peer-trusted-ca-file: /etc/kubernetes/ssl/etcd-ca.pem
+    peer-trusted-ca-file: /etc/kubernetes/ssl/ca.cert.pem
     peer-client-cert-auth: true
     peer-cert-file: /etc/kubernetes/ssl/k8s-etcd.pem
     peer-key-file: /etc/kubernetes/ssl/k8s-etcd-key.pem
@@ -148,7 +148,7 @@ write-files:
       clusters:
         - name: local
           cluster:
-            certificate-authority: /etc/kubernetes/ssl/cluster-secure-ca.pem
+            certificate-authority: /etc/kubernetes/ssl/ca.cert.pem
       users:
         - name: kubelet
           user:
