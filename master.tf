@@ -33,7 +33,7 @@ resource "aws_instance" "master" {
   tags {
     Name = "${var.env}-k8s-master-${count.index+1}"
     env = "${var.env}"
-    "kubernetes.io/cluster/${var.cluster_name}" = "true"
+    # "kubernetes.io/cluster/${var.cluster_name}" = "true"
     role = "etcd,apiserver"
     KubernetesCluster = "${var.cluster_name}"
     builtWith = "terraform"
@@ -74,7 +74,7 @@ resource "aws_elb" "this" {
     builtWith = "terraform"
     KubernetesCluster = "${var.cluster_name}"
     env = "${var.env}"
-    "kubernetes.io/cluster/${var.cluster_name}" = "true"
+    # "kubernetes.io/cluster/${var.cluster_name}" = "true"
     role = "apiserver"
   }
 }
