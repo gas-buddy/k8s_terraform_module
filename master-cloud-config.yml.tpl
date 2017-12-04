@@ -4,18 +4,18 @@
 coreos:
 
   etcd2:
-    advertise-client-urls: http://etcd3.${discovery_srv}:2379
+    advertise-client-urls: http://${node_name}.${discovery_srv}:2379
     # cert-file: /etc/kubernetes/ssl/k8s-etcd.pem
     # debug: true
     discovery-srv: ${discovery_srv}
-    initial-advertise-peer-urls: https://etcd3.${discovery_srv}:2380
-    initial-cluster-state: new
+    initial-advertise-peer-urls: https://${ip_address}:2380
+    initial-cluster-state: existing
     initial-cluster-token: etcd-cluster-staging
     # key-file: /etc/kubernetes/ssl/k8s-etcd-key.pem
     listen-client-urls: http://0.0.0.0:2379
     listen-peer-urls: https://0.0.0.0:2380
-    name: etcd3
-    peer-trusted-ca-file: /etc/kubernetes/ssl/etcd-ca.pem
+    name: ${node_name}
+    peer-trusted-ca-file: /etc/kubernetes/ssl/ca.cert.pem
     peer-client-cert-auth: true
     peer-cert-file: /etc/kubernetes/ssl/k8s-etcd.pem
     peer-key-file: /etc/kubernetes/ssl/k8s-etcd-key.pem
@@ -103,8 +103,8 @@ coreos:
         [Unit]
         ConditionFileIsExecutable=/usr/lib/coreos/kubelet-wrapper
         [Service]
-        Environment="KUBELET_ACI=quay.io/coreos/hyperkube"
-        Environment="KUBELET_VERSION=${kubernetes_version}"
+        Environment="KUBELET_IMAGE_URL=quay.io/coreos/hyperkube"
+        Environment="KUBELET_IMAGE_TAG=${kubernetes_version}"
         Environment="RKT_OPTS=\
           --volume dns,kind=host,source=/etc/resolv.conf \
           --mount volume=dns,target=/etc/resolv.conf \
@@ -166,7 +166,7 @@ write-files:
           - --admission-control=SecurityContextDeny
           - --admission-control=ServiceAccount
           - --allow-privileged=true
-          - --client-ca-file=/etc/kubernetes/ssl/cluster-secure-ca.pem
+          - --client-ca-file=/etc/kubernetes/ssl/ca.cert.pem
           - --cloud-provider=aws
           - --etcd-servers=http://etcd.${discovery_srv}:2379
           - --insecure-bind-address=0.0.0.0
@@ -224,7 +224,7 @@ write-files:
           - --cloud-provider=aws
           - --leader-elect=true
           - --master=http://127.0.0.1:8080
-          - --root-ca-file=/etc/kubernetes/ssl/cluster-secure-ca.pem
+          - --root-ca-file=/etc/kubernetes/ssl/ca.cert.pem
           - --service-account-private-key-file=/etc/kubernetes/ssl/k8s-apiserver-key.pem
           resources:
             requests:

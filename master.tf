@@ -1,4 +1,6 @@
 data "template_file" "master_cloud_config" {
+  count = "${var.master_instances}"
+
   template = "${file("${path.module}/master-cloud-config.yml.tpl")}"
 
   vars {
@@ -8,216 +10,77 @@ data "template_file" "master_cloud_config" {
     ssl_bucket = "${var.ssl_bucket}"
     flanneld_network = "${var.flanneld_network}"
     cluster_ip_range = "${var.cluster_ip_range}"
+    node_name = "${var.env}-k8s-master-${count.index+1}"
+    ip_address = "${element(var.master_ips, count.index)}"
   }
 }
 
-resource "aws_launch_configuration" "masters" {
-  name_prefix = "${var.env}-k8s-master-"
-  image_id = "${var.master_ami}"
+resource "aws_instance" "master" {
+  count = "${var.master_instances}"
+
+  ami = "${var.master_ami}"
   instance_type = "${var.master_instance_type}"
-  security_groups = ["${var.master_security_groups}"]
-  user_data = "${data.template_file.master_cloud_config.rendered}"
-  iam_instance_profile = "${var.master_iam_profile}"
   key_name = "${var.key_name}"
-  enable_monitoring = true
+  vpc_security_group_ids = ["${var.master_security_groups}"]
+  subnet_id = "${element(var.master_subnets, count.index)}"
+  user_data = "${element(data.template_file.master_cloud_config.*.rendered, count.index)}"
+  iam_instance_profile = "${var.master_iam_profile}"
+  private_ip = "${element(var.master_ips, count.index)}"
+
+  source_dest_check = false
+  monitoring = false
+
+  tags {
+    Name = "${var.env}-k8s-master-${count.index+1}"
+    env = "${var.env}"
+    # "kubernetes.io/cluster/${var.cluster_name}" = "true"
+    role = "etcd,apiserver"
+    KubernetesCluster = "${var.cluster_name}"
+    builtWith = "terraform"
+  }
 
   root_block_device {
     volume_type = "gp2"
     volume_size = "${var.master_root_volume_size}"
   }
+}
 
-  lifecycle {
-    create_before_destroy = true
+resource "aws_elb" "this" {
+  # name = "${var.env}-kubernetes-api"
+  name = "k8s-apiserver-${var.cluster_name}"
+  subnets = ["${var.public_subnets}"]
+  instances = ["${aws_instance.master.*.id}"]
+  idle_timeout = 3600
+  cross_zone_load_balancing = true
+  security_groups = ["${var.elb_security_group}"]
+
+  health_check {
+    target = "HTTP:8080/"
+    timeout = 3
+    interval = 30
+    unhealthy_threshold = 2
+    healthy_threshold = 2
+  }
+
+  listener {
+    instance_port = 443
+    instance_protocol = "tcp"
+    lb_port = 443
+    lb_protocol = "tcp"
+  }
+
+  tags {
+    Name = "k8s-apiserver-${var.cluster_name}"
+    builtWith = "terraform"
+    KubernetesCluster = "${var.cluster_name}"
+    env = "${var.env}"
+    # "kubernetes.io/cluster/${var.cluster_name}" = "true"
+    role = "apiserver"
   }
 }
-
-resource "aws_cloudformation_stack" "masters_asg" {
-  name = "${var.env}-k8s-master"
-  template_body = <<EOF
-{
-  "Resources": {
-    "AutoScalingGroup": {
-      "Type": "AWS::AutoScaling::AutoScalingGroup",
-      "Properties": {
-        "Cooldown": 300,
-        "HealthCheckType": "EC2",
-        "HealthCheckGracePeriod": 0,
-        "LaunchConfigurationName": "${aws_launch_configuration.masters.name}",
-        "MaxSize": "${var.master_asg_max_size}",
-        "MetricsCollection": [
-          {
-            "Granularity": "1Minute",
-            "Metrics": [
-              "GroupMinSize",
-              "GroupMaxSize",
-              "GroupDesiredCapacity",
-              "GroupInServiceInstances",
-              "GroupPendingInstances",
-              "GroupStandbyInstances",
-              "GroupTerminatingInstances",
-              "GroupTotalInstances"
-            ]
-          }
-        ],
-        "MinSize": "${var.master_asg_min_size}",
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "${var.env}-k8s-master",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "env",
-            "Value": "${var.env}",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "role",
-            "Value": "master",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "kubernetes.io/cluster/${var.cluster_name}",
-            "Value": "true",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "KubernetesCluster",
-            "Value": "${var.cluster_name}",
-            "PropagateAtLaunch": true
-          }
-        ],
-        "TerminationPolicies": [
-          "OldestLaunchConfiguration",
-          "OldestInstance",
-          "Default"
-        ],
-        "VPCZoneIdentifier": ${jsonencode(var.master_subnets)}
-      },
-      "UpdatePolicy": {
-        "AutoScalingRollingUpdate": {
-          "MinInstancesInService": "${var.master_asg_min_size}",
-          "MaxBatchSize": "2",
-          "PauseTime": "PT0S"
-        }
-      }
-    }
-  },
-  "Outputs": {
-    "AsgName": {
-      "Description": "The name of the auto scaling group",
-      "Value": {
-        "Ref": "AutoScalingGroup"
-      }
-    }
-  }
-}
-EOF
-}
-
-# This might be useful one day...
-
-# resource "aws_autoscaling_policy" "masters_remove_capacity" {
-#   name = "${var.env}-${var.index}-masters-${var.site}-remove-capacity"
-#   scaling_adjustment = "${var.master_asg_scale_in_qty}"
-#   adjustment_type = "ChangeInCapacity"
-#   cooldown = "${var.master_asg_scale_in_cooldown}"
-#   autoscaling_group_name = "${aws_cloudformation_stack.masters_asg.outputs["AsgName"]}"
-# }
-
-# resource "aws_cloudwatch_metric_alarm" "masters_remove_capacity" {
-#   alarm_name = "${var.env}-${var.index}-masters-${var.site}-remove-capacity"
-#   comparison_operator = "GreaterThanOrEqualToThreshold"
-#   evaluation_periods = 2
-#   metric_name = "v1.travis.rabbitmq.consumers.builds.${var.master_queue}.headroom"
-#   namespace = "${var.master_asg_namespace}"
-#   period = 60
-#   statistic = "Maximum"
-#   threshold = "${var.master_asg_scale_in_threshold}"
-#   alarm_actions = ["${aws_autoscaling_policy.masters_remove_capacity.arn}"]
-# }
-
-# resource "aws_autoscaling_policy" "masters_add_capacity" {
-#   name = "${var.env}-${var.index}-masters-${var.site}-add-capacity"
-#   scaling_adjustment = "${var.master_asg_scale_out_qty}"
-#   adjustment_type = "ChangeInCapacity"
-#   cooldown = "${var.master_asg_scale_out_cooldown}"
-#   autoscaling_group_name = "${aws_cloudformation_stack.masters_asg.outputs["AsgName"]}"
-# }
-
-# resource "aws_cloudwatch_metric_alarm" "masters_add_capacity" {
-#   alarm_name = "${var.env}-${var.index}-masters-${var.site}-add-capacity"
-#   comparison_operator = "LessThanThreshold"
-#   evaluation_periods = 2
-#   metric_name = "v1.travis.rabbitmq.consumers.builds.${var.master_queue}.headroom"
-#   namespace = "${var.master_asg_namespace}"
-#   period = 60
-#   statistic = "Maximum"
-#   threshold = "${var.master_asg_scale_out_threshold}"
-#   alarm_actions = ["${aws_autoscaling_policy.masters_add_capacity.arn}"]
-# }
 
 resource "aws_sns_topic" "masters" {
   name = "${var.env}-k8s-master"
 }
 
-resource "aws_iam_role" "masters_sns" {
-  name = "${var.env}-k8s-master-sns"
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "autoscaling.amazonaws.com"
-      }
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_iam_role_policy" "masters_sns" {
-  name = "${var.env}-k8s-master-sns"
-  role = "${aws_iam_role.masters_sns.id}"
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": [
-        "sqs:SendMessage",
-        "sqs:GetQueueUrl",
-        "sns:Publish"
-      ],
-      "Effect": "Allow",
-      "Resource": "*"
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_autoscaling_lifecycle_hook" "masters_launching" {
-  name = "${var.env}-k8s-master-launching"
-  autoscaling_group_name = "${aws_cloudformation_stack.masters_asg.outputs["AsgName"]}"
-  default_result = "CONTINUE"
-  heartbeat_timeout = "${var.lifecycle_hook_heartbeat_timeout}"
-  lifecycle_transition = "autoscaling:EC2_INSTANCE_LAUNCHING"
-  notification_target_arn = "${aws_sns_topic.masters.arn}"
-  role_arn = "${aws_iam_role.masters_sns.arn}"
-}
-
-resource "aws_autoscaling_lifecycle_hook" "masters_terminating" {
-  name = "${var.env}-k8s-master-terminating"
-  autoscaling_group_name = "${aws_cloudformation_stack.masters_asg.outputs["AsgName"]}"
-  default_result = "CONTINUE"
-  heartbeat_timeout = "${var.lifecycle_hook_heartbeat_timeout}"
-  lifecycle_transition = "autoscaling:EC2_INSTANCE_TERMINATING"
-  notification_target_arn = "${aws_sns_topic.masters.arn}"
-  role_arn = "${aws_iam_role.masters_sns.arn}"
-}
-
-output "master_user_data" { value = "${data.template_file.master_cloud_config.rendered}" }
+output "master_user_data" { value = "${data.template_file.master_cloud_config.*.rendered}" }

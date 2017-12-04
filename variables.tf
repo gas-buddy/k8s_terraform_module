@@ -7,6 +7,7 @@ variable "cluster_dns" { type = "string" }
 variable "ssl_bucket" { type = "string" }
 variable "key_name" { type = "string" }
 variable "addl_volume_size" { default = 250 }
+variable "route53_zone_id" { type = "string" }
 
 # Needed if we ever want to implement autoscaling policy
 # variable "worker_asg_namespace" {}
@@ -24,18 +25,23 @@ variable "cluster_ip_range" { default = "10.3.0.0/24" }
 variable "master_root_volume_size" { default = 8 }
 variable "master_iam_profile" { type = "string" }
 variable "master_ami" { default = "ami-a89d3ad2" }
-variable "master_asg_max_size" { default = 3 }
-variable "master_asg_min_size" { default = 3 }
-variable "master_instance_type" { default = "t2.medium" }
+variable "master_instance_type" { default = "m3.medium" }
 variable "master_subnets" { type = "list" }
+variable "master_ips" { type = "list" }
 variable "master_security_groups" { type = "list" }
+variable "public_subnets" { type = "list" }
+variable "master_instances" { default = 3 }
+variable "elb_security_group" { type = "string" }
 
 # workers
 variable "worker_root_volume_size" { default = 8 }
 variable "worker_iam_profile" { type = "string" }
 variable "worker_ami" { default = "ami-a89d3ad2" }
-variable "worker_asg_max_size" { default = 5 }
+variable "worker_asg_max_size" { default = 8 }
 variable "worker_asg_min_size" { default = 4 }
-variable "worker_instance_type" { default = "t2.medium" }
+variable "worker_instance_type" { default = "m3.medium" }
 variable "worker_subnets" { type = "list" }
 variable "worker_security_groups" { type = "list" }
+
+variable "legacy_ips" { default = [] }
+variable "legacy_names" { default = [] }

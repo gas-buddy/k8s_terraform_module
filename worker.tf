@@ -45,7 +45,7 @@ resource "aws_cloudformation_stack" "workers_asg" {
       "Properties": {
         "Cooldown": 300,
         "HealthCheckType": "EC2",
-        "HealthCheckGracePeriod": 0,
+        "HealthCheckGracePeriod": 120,
         "LaunchConfigurationName": "${aws_launch_configuration.workers.name}",
         "MaxSize": "${var.worker_asg_max_size}",
         "MetricsCollection": [
@@ -101,7 +101,7 @@ resource "aws_cloudformation_stack" "workers_asg" {
       "UpdatePolicy": {
         "AutoScalingRollingUpdate": {
           "MinInstancesInService": "${var.worker_asg_min_size}",
-          "MaxBatchSize": "2",
+          "MaxBatchSize": "1",
           "PauseTime": "PT0S"
         }
       }
