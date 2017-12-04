@@ -30,7 +30,7 @@ variable "master_subnets" { type = "list" }
 variable "master_ips" { type = "list" }
 variable "master_security_groups" { type = "list" }
 variable "public_subnets" { type = "list" }
-variable "master_instances" { default = 1 }
+variable "master_instances" { default = 3 }
 
 # workers
 variable "worker_root_volume_size" { default = 8 }
