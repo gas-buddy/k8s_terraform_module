@@ -49,7 +49,7 @@ resource "aws_elb" "this" {
   # name = "${var.env}-kubernetes-api"
   name = "kz8s-apiserver-staging"
   subnets = ["${var.public_subnets}"]
-  instances = ["${join(",", aws_instance.master.*.id)}"]
+  instances = ["${aws_instance.master.*.id}"]
   idle_timeout = 3600
   cross_zone_load_balancing = true
 
