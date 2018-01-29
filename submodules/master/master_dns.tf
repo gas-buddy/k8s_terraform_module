@@ -1,15 +1,15 @@
 resource "aws_route53_record" "A" {
-  count = "${var.master_instances}"
+  count = "${var.instances}"
 
   zone_id = "${var.route53_zone_id}"
   name = "${var.env}-k8s-master-${count.index+1}.${var.discovery_srv}"
   type = "A"
   ttl = "300"
 
-  records = ["${element(var.master_ips, count.index)}"]
+  records = ["${element(var.ips, count.index)}"]
 }
 
-variable "master_names" {
+variable "names" {
   default = [
     "k8s-master-1",
     "k8s-master-2",
@@ -25,7 +25,7 @@ resource "aws_route53_record" "server_SRV" {
 
   records = [
     "${formatlist("0 0 2380 %s.${var.discovery_srv}", var.legacy_names)}",
-    "${formatlist("0 0 2380 ${var.env}-%s.${var.discovery_srv}", var.master_names)}"
+    "${formatlist("0 0 2380 ${var.env}-%s.${var.discovery_srv}", var.names)}"
   ]
 }
 
@@ -37,7 +37,7 @@ resource "aws_route53_record" "client_SRV" {
 
   records = [
     "${formatlist("0 0 2380 %s.${var.discovery_srv}", var.legacy_names)}",
-    "${formatlist("0 0 2380 ${var.env}-%s.${var.discovery_srv}", var.master_names)}"
+    "${formatlist("0 0 2380 ${var.env}-%s.${var.discovery_srv}", var.names)}"
   ]
 }
 
@@ -49,7 +49,7 @@ resource "aws_route53_record" "cluster-A" {
 
   records = [
     "${var.legacy_ips}",
-    "${var.master_ips}"
+    "${var.ips}"
   ]
 }
 
