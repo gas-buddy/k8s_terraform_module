@@ -3,32 +3,29 @@
 ---
 coreos:
 
-  etcd2:
-    advertise-client-urls: http://${node_name}.${discovery_srv}:2379
-    # cert-file: /etc/kubernetes/ssl/k8s-etcd.pem
-    # debug: true
-    discovery-srv: ${discovery_srv}
-    initial-advertise-peer-urls: https://${ip_address}:2380
-    initial-cluster-state: existing
-    initial-cluster-token: etcd-cluster-staging
-    # key-file: /etc/kubernetes/ssl/k8s-etcd-key.pem
-    listen-client-urls: http://0.0.0.0:2379
-    listen-peer-urls: https://0.0.0.0:2380
-    name: ${node_name}
-    peer-trusted-ca-file: /etc/kubernetes/ssl/ca.cert.pem
-    peer-client-cert-auth: true
-    peer-cert-file: /etc/kubernetes/ssl/k8s-etcd.pem
-    peer-key-file: /etc/kubernetes/ssl/k8s-etcd-key.pem
-
   units:
-    - name: etcd2.service
-      command: start
+    - name: etcd-member.service
       drop-ins:
+        - name: 1-override.conf
+          content: |
+            [Service]
+            Environment="ETCD_DISCOVERY=${discovery_srv}/etcd-cluster-staging"
+            Environment="ETCD_ADVERTISE_CLIENT_URLS=http://${node_name}.${discovery_srv}:2379"
+            Environment="ETCD_INITIAL_ADVERTISE_PEER_URLS=https://${ip_address}:2380"
+            Environment="ETCD_LISTEN_CLIENT_URLS=https://0.0.0.0:2379"
+            Environment="ETCD_LISTEN_PEER_URLS=https://0.0.0.0:2380"
+            Environment="ETCD_TRUSTED_CA_FILE=/var/lib/etcd/ssl/ca.cert.pem"
+            Environment="ETCD_PEER_TRUSTED_CA_FILE=/var/lib/etcd/ssl/ca.cert.pem"
+            Environment="ETCD_CERT_FILE=/var/lib/etcd/ssl/k8s-etcd.pem"
+            Environment="ETCD_KEY_FILE=/var/lib/etcd/ssl/k8s-etcd-key.pem"
+            Environment="ETCD_PEER_CERT_FILE=/var/lib/etcd/ssl/k8s-etcd.pem"
+            Environment="ETCD_PEER_KEY_FILE=/var/lib/etcd/ssl/k8s-etcd-key.pem"
         - name: wait-for-certs.conf
           content: |
             [Unit]
             After=get-ssl.service
             Requires=get-ssl.service
+      command: start
 
     - name: flanneld.service
       command: start
@@ -80,9 +77,9 @@ coreos:
         Description=Get ssl artifacts from s3 bucket using IAM role
         Requires=s3-get-presigned-url.service
         [Service]
-        ExecStartPre=-/usr/bin/mkdir -p /etc/kubernetes/ssl
+        ExecStartPre=-/usr/bin/mkdir -p /var/lib/etcd/ssl
         ExecStart=/bin/sh -c "/usr/bin/curl $(/opt/bin/s3-get-presigned-url \
-          us-east-1 ${ssl_bucket} ssl/k8s-apiserver.tar) | tar xv -C /etc/kubernetes/ssl/"
+          us-east-1 ${ssl_bucket} ssl/k8s-apiserver.tar) | tar xv -C /var/lib/etcd/ssl/"
         RemainAfterExit=yes
         Type=oneshot
 
@@ -166,16 +163,16 @@ write-files:
           - --admission-control=SecurityContextDeny
           - --admission-control=ServiceAccount
           - --allow-privileged=true
-          - --client-ca-file=/etc/kubernetes/ssl/ca.cert.pem
+          - --client-ca-file=/var/lib/etcd/ssl/ca.cert.pem
           - --cloud-provider=aws
           - --etcd-servers=http://etcd.${discovery_srv}:2379
           - --insecure-bind-address=0.0.0.0
           - --runtime-config=batch/v2alpha1
           - --secure-port=443
-          - --service-account-key-file=/etc/kubernetes/ssl/k8s-apiserver-key.pem
+          - --service-account-key-file=/var/lib/etcd/ssl/k8s-apiserver-key.pem
           - --service-cluster-ip-range=${cluster_ip_range}
-          - --tls-cert-file=/etc/kubernetes/ssl/k8s-apiserver.pem
-          - --tls-private-key-file=/etc/kubernetes/ssl/k8s-apiserver-key.pem
+          - --tls-cert-file=/var/lib/etcd/ssl/k8s-apiserver.pem
+          - --tls-private-key-file=/var/lib/etcd/ssl/k8s-apiserver-key.pem
           - --v=2
           livenessProbe:
             httpGet:
@@ -192,7 +189,7 @@ write-files:
             hostPort: 8080
             name: local
           volumeMounts:
-          - mountPath: /etc/kubernetes/ssl
+          - mountPath: /var/lib/etcd/ssl
             name: ssl-certs-kubernetes
             readOnly: true
           - mountPath: /etc/ssl/certs
@@ -200,7 +197,7 @@ write-files:
             readOnly: true
         volumes:
         - hostPath:
-            path: /etc/kubernetes/ssl
+            path: /var/lib/etcd/ssl
           name: ssl-certs-kubernetes
         - hostPath:
             path: /usr/share/ca-certificates
@@ -224,8 +221,8 @@ write-files:
           - --cloud-provider=aws
           - --leader-elect=true
           - --master=http://127.0.0.1:8080
-          - --root-ca-file=/etc/kubernetes/ssl/ca.cert.pem
-          - --service-account-private-key-file=/etc/kubernetes/ssl/k8s-apiserver-key.pem
+          - --root-ca-file=/var/lib/etcd/ssl/ca.cert.pem
+          - --service-account-private-key-file=/var/lib/etcd/ssl/k8s-apiserver-key.pem
           resources:
             requests:
               cpu: 200m
@@ -237,7 +234,7 @@ write-files:
             initialDelaySeconds: 15
             timeoutSeconds: 1
           volumeMounts:
-          - mountPath: /etc/kubernetes/ssl
+          - mountPath: /var/lib/etcd/ssl
             name: ssl-certs-kubernetes
             readOnly: true
           - mountPath: /etc/ssl/certs
@@ -245,7 +242,7 @@ write-files:
             readOnly: true
         volumes:
         - hostPath:
-            path: /etc/kubernetes/ssl
+            path: /var/lib/etcd/ssl
           name: ssl-certs-kubernetes
         - hostPath:
             path: /usr/share/ca-certificates
