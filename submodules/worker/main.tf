@@ -1,4 +1,4 @@
-data "template_file" "worker_cloud_config" {
+data "template_file" "cloud_config" {
   template = "${file("${path.module}/worker-cloud-config.yml.tpl")}"
 
   vars {
@@ -11,17 +11,17 @@ data "template_file" "worker_cloud_config" {
 
 resource "aws_launch_configuration" "workers" {
   name_prefix = "${var.env}-k8s-worker-"
-  image_id = "${var.worker_ami}"
-  instance_type = "${var.worker_instance_type}"
-  security_groups = ["${var.worker_security_groups}"]
-  user_data = "${data.template_file.worker_cloud_config.rendered}"
-  iam_instance_profile = "${var.worker_iam_profile}"
+  image_id = "${var.ami}"
+  instance_type = "${var.instance_type}"
+  security_groups = ["${var.security_groups}"]
+  user_data = "${data.template_file.cloud_config.rendered}"
+  iam_instance_profile = "${var.iam_profile}"
   key_name = "${var.key_name}"
   enable_monitoring = true
 
   root_block_device {
     volume_type = "gp2"
-    volume_size = "${var.worker_root_volume_size}"
+    volume_size = "${var.root_volume_size}"
   }
 
   ebs_block_device {
@@ -47,7 +47,7 @@ resource "aws_cloudformation_stack" "workers_asg" {
         "HealthCheckType": "EC2",
         "HealthCheckGracePeriod": 120,
         "LaunchConfigurationName": "${aws_launch_configuration.workers.name}",
-        "MaxSize": "${var.worker_asg_max_size}",
+        "MaxSize": "${var.asg_max_size}",
         "MetricsCollection": [
           {
             "Granularity": "1Minute",
@@ -63,7 +63,7 @@ resource "aws_cloudformation_stack" "workers_asg" {
             ]
           }
         ],
-        "MinSize": "${var.worker_asg_min_size}",
+        "MinSize": "${var.asg_min_size}",
         "Tags": [
           {
             "Key": "Name",
@@ -96,11 +96,11 @@ resource "aws_cloudformation_stack" "workers_asg" {
           "OldestInstance",
           "Default"
         ],
-        "VPCZoneIdentifier": ${jsonencode(var.worker_subnets)}
+        "VPCZoneIdentifier": ${jsonencode(var.private_subnets)}
       },
       "UpdatePolicy": {
         "AutoScalingRollingUpdate": {
-          "MinInstancesInService": "${var.worker_asg_min_size}",
+          "MinInstancesInService": "${var.asg_min_size}",
           "MaxBatchSize": "1",
           "PauseTime": "PT0S"
         }
@@ -123,9 +123,9 @@ EOF
 
 # resource "aws_autoscaling_policy" "workers_remove_capacity" {
 #   name = "${var.env}-${var.index}-workers-${var.site}-remove-capacity"
-#   scaling_adjustment = "${var.worker_asg_scale_in_qty}"
+#   scaling_adjustment = "${var.asg_scale_in_qty}"
 #   adjustment_type = "ChangeInCapacity"
-#   cooldown = "${var.worker_asg_scale_in_cooldown}"
+#   cooldown = "${var.asg_scale_in_cooldown}"
 #   autoscaling_group_name = "${aws_cloudformation_stack.workers_asg.outputs["AsgName"]}"
 # }
 
@@ -133,19 +133,19 @@ EOF
 #   alarm_name = "${var.env}-${var.index}-workers-${var.site}-remove-capacity"
 #   comparison_operator = "GreaterThanOrEqualToThreshold"
 #   evaluation_periods = 2
-#   metric_name = "v1.travis.rabbitmq.consumers.builds.${var.worker_queue}.headroom"
-#   namespace = "${var.worker_asg_namespace}"
+#   metric_name = "v1.travis.rabbitmq.consumers.builds.${var.queue}.headroom"
+#   namespace = "${var.asg_namespace}"
 #   period = 60
 #   statistic = "Maximum"
-#   threshold = "${var.worker_asg_scale_in_threshold}"
+#   threshold = "${var.asg_scale_in_threshold}"
 #   alarm_actions = ["${aws_autoscaling_policy.workers_remove_capacity.arn}"]
 # }
 
 # resource "aws_autoscaling_policy" "workers_add_capacity" {
 #   name = "${var.env}-${var.index}-workers-${var.site}-add-capacity"
-#   scaling_adjustment = "${var.worker_asg_scale_out_qty}"
+#   scaling_adjustment = "${var.asg_scale_out_qty}"
 #   adjustment_type = "ChangeInCapacity"
-#   cooldown = "${var.worker_asg_scale_out_cooldown}"
+#   cooldown = "${var.asg_scale_out_cooldown}"
 #   autoscaling_group_name = "${aws_cloudformation_stack.workers_asg.outputs["AsgName"]}"
 # }
 
@@ -153,11 +153,11 @@ EOF
 #   alarm_name = "${var.env}-${var.index}-workers-${var.site}-add-capacity"
 #   comparison_operator = "LessThanThreshold"
 #   evaluation_periods = 2
-#   metric_name = "v1.travis.rabbitmq.consumers.builds.${var.worker_queue}.headroom"
-#   namespace = "${var.worker_asg_namespace}"
+#   metric_name = "v1.travis.rabbitmq.consumers.builds.${var.queue}.headroom"
+#   namespace = "${var.asg_namespace}"
 #   period = 60
 #   statistic = "Maximum"
-#   threshold = "${var.worker_asg_scale_out_threshold}"
+#   threshold = "${var.asg_scale_out_threshold}"
 #   alarm_actions = ["${aws_autoscaling_policy.workers_add_capacity.arn}"]
 # }
 
@@ -224,4 +224,4 @@ resource "aws_autoscaling_lifecycle_hook" "workers_terminating" {
   role_arn = "${aws_iam_role.workers_sns.arn}"
 }
 
-output "worker_user_data" { value = "${data.template_file.worker_cloud_config.rendered}" }
+output "user_data" { value = "${data.template_file.cloud_config.rendered}" }

@@ -1,5 +1,5 @@
-data "template_file" "master_cloud_config" {
-  count = "${var.master_instances}"
+data "template_file" "cloud_config" {
+  count = "${var.instances}"
 
   template = "${file("${path.module}/master-cloud-config.yml.tpl")}"
 
@@ -11,21 +11,21 @@ data "template_file" "master_cloud_config" {
     flanneld_network = "${var.flanneld_network}"
     cluster_ip_range = "${var.cluster_ip_range}"
     node_name = "${var.env}-k8s-master-${count.index+1}"
-    ip_address = "${element(var.master_ips, count.index)}"
+    ip_address = "${element(var.ips, count.index)}"
   }
 }
 
-resource "aws_instance" "master" {
-  count = "${var.master_instances}"
+resource "aws_instance" "this" {
+  count = "${var.instances}"
 
-  ami = "${var.master_ami}"
-  instance_type = "${var.master_instance_type}"
+  ami = "${var.ami}"
+  instance_type = "${var.instance_type}"
   key_name = "${var.key_name}"
-  vpc_security_group_ids = ["${var.master_security_groups}"]
-  subnet_id = "${element(var.master_subnets, count.index)}"
-  user_data = "${element(data.template_file.master_cloud_config.*.rendered, count.index)}"
-  iam_instance_profile = "${var.master_iam_profile}"
-  private_ip = "${element(var.master_ips, count.index)}"
+  vpc_security_group_ids = ["${var.security_groups}"]
+  subnet_id = "${element(var.private_subnets, count.index)}"
+  user_data = "${element(data.template_file.cloud_config.*.rendered, count.index)}"
+  iam_instance_profile = "${var.iam_profile}"
+  private_ip = "${element(var.ips, count.index)}"
 
   source_dest_check = false
   monitoring = false
@@ -41,7 +41,7 @@ resource "aws_instance" "master" {
 
   root_block_device {
     volume_type = "gp2"
-    volume_size = "${var.master_root_volume_size}"
+    volume_size = "${var.root_volume_size}"
   }
 }
 
@@ -49,7 +49,7 @@ resource "aws_elb" "this" {
   # name = "${var.env}-kubernetes-api"
   name = "k8s-apiserver-${var.cluster_name}"
   subnets = ["${var.public_subnets}"]
-  instances = ["${aws_instance.master.*.id}"]
+  instances = ["${aws_instance.this.*.id}"]
   idle_timeout = 3600
   cross_zone_load_balancing = true
   security_groups = ["${var.elb_security_group}"]
@@ -83,4 +83,4 @@ resource "aws_sns_topic" "masters" {
   name = "${var.env}-k8s-master"
 }
 
-output "master_user_data" { value = "${data.template_file.master_cloud_config.*.rendered}" }
+output "user_data" { value = "${data.template_file.cloud_config.*.rendered}" }
